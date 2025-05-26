@@ -36,3 +36,45 @@ Rel(dremio, iceberg, "Чтение данных", "Iceberg Tables")
 Rel(datahub, iceberg, "Сканирует схемы", "Metadata API")
 Rel(datahub, airflow, "Регистрирует пайплайны", "Metadata Plugin")
 @enduml
+
+@startuml
+!define C4P https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master
+!includeurl C4P/C4_Container.puml
+
+System_Boundary(medsys, "Data Platform") {
+  Container(ingest, "Data Ingestion", "Kafka / REST", "Получение данных от финтех-, мед- и ИИ-сервисов")
+  Container(airflow, "Orchestration", "Apache Airflow", "Оркестрация ETL и ML-пайплайнов")
+  Container(spark, "Compute Layer", "Apache Spark", "ETL, ML, аналитика на данных")
+  Container(iceberg, "Data Lakehouse", "Apache Iceberg", "Хранение таблиц: сырые, обработанные, мастер-данные")
+  Container(nessie, "Data Version Control", "Project Nessie", "Контроль версий таблиц, time-travel, ветвление")
+  Container(dremio, "Data Virtualization", "Dremio", "Интерактивные SQL-запросы, BI, semantic layer")
+  Container(superset, "BI Portal", "Apache Superset", "Визуализация данных, отчёты")
+  Container(keycloak, "Auth Service", "Keycloak", "Авторизация пользователей и сервисов")
+  Container(apigate, "API Gateway", "Kong / KrakenD", "Проксирование запросов и интеграция с шиной данных")
+}
+
+System_Ext(fintech, "Финтех-сервисы", "Сервисы на Java/Golang")
+System_Ext(medsys, "Медицинская система", "Система DWH и интерфейсы")
+System_Ext(ai, "AI/ML сервисы", "Модели и пайплайны на Python")
+System_Ext(bus, "Старая шина данных", "Apache Camel")
+
+' Connections
+Rel(fintech, ingest, "Push данных", "Kafka / REST")
+Rel(medsys, ingest, "Push данных", "Kafka / REST")
+Rel(ai, ingest, "Push фичей", "Kafka / REST")
+Rel(bus, apigate, "Push данных", "REST / Adapter")
+
+Rel(ingest, spark, "Подача сырых данных", "Parquet / Avro")
+Rel(airflow, spark, "Запуск ETL / ML задач")
+Rel(spark, iceberg, "Чтение / Запись таблиц", "Iceberg API")
+Rel(spark, nessie, "Коммиты версий", "Nessie API")
+Rel(airflow, nessie, "Оркестрация версионности", "Nessie API")
+Rel(dremio, iceberg, "Чтение таблиц", "Iceberg connector")
+Rel(dremio, nessie, "Использование веток / snapshot", "Catalog plugin")
+Rel(superset, dremio, "BI-запросы", "SQL over JDBC/ODBC")
+Rel(keycloak, dremio, "SSO и авторизация")
+Rel(keycloak, superset, "SSO и роли")
+Rel(apigate, dremio, "API-доступ к данным", "REST / GraphQL")
+
+@enduml
+
