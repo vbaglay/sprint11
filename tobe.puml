@@ -1,0 +1,38 @@
+@startuml
+!define C4P https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master
+!includeurl C4P/C4_Container.puml
+
+System_Boundary(system, "Data Platform") {
+    Container(airflow, "Ingest Layer", "Apache Airflow", "Оркестрация загрузки из финтеха, медсистем и шины")
+    Container(iceberg, "Data Lakehouse", "Apache Iceberg + S3", "Хранение сырых, очищенных и агрегированных данных")
+    Container(dremio, "SQL Engine", "Dremio", "SQL-доступ к данным в Iceberg для BI, ML и API")
+    Container(superset, "BI-платформа", "Apache Superset", "Аналитические дашборды и кастомные отчеты")
+    Container(datahub, "Data Catalog", "DataHub", "Каталог метаданных, lineage, SLA и владельцев")
+    Container(apiGate, "API Gateway", "Kong / KrakenD / NGINX", "REST/gRPC интерфейс к аналитическим данным")
+    Container(keycloak, "Identity & Access Management", "Keycloak", "Авторизация и аутентификация пользователей, управление ролями и правами")
+    Container(mlService, "ML-сервисы", "Python-based", "Работа с медицинскими данными, прогнозы, анализ")
+    Container(kafka, "Event Streaming", "Apache Kafka", "Передача событий и данных между системами")
+}
+
+
+System_Ext(fintech, "Финтех-сервисы", "Go/Java")
+System_Ext(medsys, "Медицинская система", "SQL Server 2008 DWH")
+System_Ext(bus, "Интеграционная шина", "Apache Camel")
+
+Rel(fintech, kafka, "Публикует события", "Kafka Topics")
+Rel(medsys, kafka, "Публикует события", "Kafka Topics")
+Rel(kafka, airflow, "Потребляет события для ETL", "Kafka Consumer")
+Rel(bus, kafka, "Публикует события", "Kafka Topics")
+
+Rel(fintech, apiGate, "Запросы к аналитике", "REST/gRPC")
+Rel(mlService, dremio, "Запросы к данным", "SQL/Arrow")
+Rel(apiGate, keycloak, "Проверка токенов, управление сессиями", "OAuth2 / OpenID Connect")
+Rel(apiGate, dremio, "SQL-запросы", "JDBC/REST")
+Rel(superset, dremio, "SQL-запросы", "JDBC/REST")
+Rel(airflow, iceberg, "Записывает данные", "ETL")
+Rel(airflow, medsys, "Извлекает данные", "JDBC")
+Rel(airflow, bus, "Получает события", "Consumer")
+Rel(dremio, iceberg, "Чтение данных", "Iceberg Tables")
+Rel(datahub, iceberg, "Сканирует схемы", "Metadata API")
+Rel(datahub, airflow, "Регистрирует пайплайны", "Metadata Plugin")
+@enduml

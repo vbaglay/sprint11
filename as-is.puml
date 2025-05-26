@@ -1,0 +1,33 @@
+@startuml
+!include <C4/C4_Container>
+
+title Container Diagram for Healthcare System
+
+Person(operator, "Оператор", "Клиентский интерфейс оператора")
+
+System_Boundary(healthcare_system, "Медицинская система") {
+    Container(ui, "Клиентский интерфейс", "Power Builder", "Интерфейс для операторов")
+    Container(bi, "BI-система", "Power BI", "Аналитика и отчетность")
+    Container(dwh, "DWH", "MSSQL", "Централизованное хранилище данных")
+    Container(ai_services, "ИИ-сервисы", "Python", "Обработка медицинских данных с помощью ИИ")
+    Container(integration_bus, "Интеграционная шина", "Apache Camel", "Обеспечивает интеграцию между системами")
+    Container(fintech_services, "Финтех-сервисы", "Java, GO", "Обработка финансовых данных")
+    Container(internal_services, "Внутренние сервисы", "Микросервисы", "Управление клиниками и внутренние процессы")
+}
+
+Rel(operator, ui, "Работает с")
+
+Rel(ui, dwh, "Мед данные и снимки")
+Rel(dwh,bi, "Данные")
+
+Rel(dwh,integration_bus, "Данные")
+Rel(integration_bus,dwh, "Данные")
+
+Rel(integration_bus, ai_services,"")
+Rel(ai_services, integration_bus,"")
+Rel(integration_bus, fintech_services,"")
+Rel(fintech_services, integration_bus,"")
+Rel(integration_bus, internal_services,"")
+
+@enduml
+
