@@ -1,0 +1,54 @@
+@startuml
+!includeurl https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Deployment.puml
+
+LAYOUT_WITH_LEGEND()
+
+Person(biUser, "Бизнес-пользователь", "Запрашивает данные для анализа")
+
+System_Ext(dwh, "Централизованный DWH", "Историческое хранилище (устаревающее)")
+System_Ext(dataHub, "DataHub", "Каталог данных и метаданных")
+System_Ext(kafka, "Kafka", "Event Streaming Platform")
+System_Ext(rbac, "RBAC / IAM", "Сервис управления доступом")
+
+System_Boundary(fintech, "Домен: Финтех") {
+  Container(finStorage, "Финансовое хранилище", "Iceberg/S3", "Витрина данных (Data Product)")
+  Container(finProducer, "Производитель данных", "ETL / CDC", "Формирует события и витрины")
+}
+
+System_Boundary(clinic, "Домен: Клиники") {
+  Container(clinicStorage, "Хранилище клиник", "Iceberg/S3", "Витрина данных (без PII)")
+  Container(clinicProducer, "Производитель данных", "ETL / CDC", "Обрабатывает TMS и мед.системы")
+}
+
+System_Boundary(ai, "Домен: ИИ") {
+  Container(aiStorage, "AI Dataset Store", "S3 + ML Format", "Модельные витрины")
+  Container(aiProducer, "Производитель данных", "Kafka Consumer + Enricher", "Подготовка датасетов")
+}
+
+System(biPortal, "BI-портал", "Superset + Dremio", "Портал самообслуживания")
+
+Rel(biUser, biPortal, "Строит отчёты")
+Rel(biPortal, rbac, "Запрашивает доступ")
+
+Rel(biPortal, finStorage, "Читает витрины")
+Rel(biPortal, clinicStorage, "Читает витрины")
+Rel(biPortal, aiStorage, "Читает витрины")
+
+Rel(finProducer, kafka, "Публикует события")
+Rel(clinicProducer, kafka, "Публикует события")
+Rel(aiProducer, kafka, "Потребляет события")
+
+Rel(finProducer, finStorage, "Пишет витрины")
+Rel(clinicProducer, clinicStorage, "Пишет витрины")
+Rel(aiProducer, aiStorage, "Формирует датасеты")
+
+Rel(finProducer, dataHub, "Регистрирует схемы и описания")
+Rel(clinicProducer, dataHub, "Регистрирует схемы и описания")
+Rel(aiProducer, dataHub, "Регистрирует схемы и описания")
+
+Rel(biPortal, dataHub, "Читает метаданные")
+
+Rel(finProducer, dwh, "Параллельно выгружает в DWH (временно)", "ETL")
+Rel(clinicProducer, dwh, "Параллельно выгружает в DWH (временно)", "ETL")
+
+@enduml
