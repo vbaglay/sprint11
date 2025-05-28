@@ -1,0 +1,49 @@
+@startuml
+!define C4P https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master
+!include C4P/C4_Container.puml
+LAYOUT_WITH_LEGEND()
+
+title C4 Container Diagram — Data Mesh Technical View
+
+
+System_Boundary(core, "Core Applications (DDD Domains)") {
+  Container(core_app, "Domain Services", "Spring Boot / gRPC", "Patients, Medical, Fintech, Logistics — REST/gRPC API")
+}
+
+' === Data Platform ===
+System_Boundary(data_mesh, "Data Mesh Platform") {
+  Container(kafka, "Kafka", "Apache Kafka", "Event Hub для всех доменов")
+  Container(airflow, "Airflow", "Apache Airflow", "ETL/ELT пайплайны и оркестрация")
+  Container(iceberg, "Iceberg", "Apache Iceberg (на S3)", "Хранилище аналитических ACID-таблиц")
+  Container(nessie, "Nessie", "Project Nessie", "Контроль версий таблиц Iceberg")
+  Container(datahub, "DataHub", "LinkedIn DataHub", "Каталог данных, метаданные, data lineage")
+  Container(trino, "Trino", "Trino", "SQL движок для запросов к Iceberg и Kafka")
+  Container(dremio, "Dremio", "Dremio", "Self-service SQL и BI")
+  Container(superset, "Superset", "Apache Superset", "BI-витрины и дашборды")
+}
+
+' === Infra Layer ===
+System_Boundary(infra, "Infrastructure Layer") {
+  Container(apiGw, "API Gateway", "Kong", "Роутинг и защита API")
+  Container(auth, "Keycloak", "Keycloak", "OAuth2 и RBAC")
+}
+
+' === Потоки ===
+Rel(core_app, kafka, "Публикация доменных событий", "Avro/JSON")
+Rel(kafka, airflow, "Триггер пайплайнов", "Consumer")
+Rel(airflow, iceberg, "Запись агрегированных таблиц", "Parquet")
+Rel(iceberg, nessie, "Версионирование", "Git-like commits")
+Rel(airflow, datahub, "Регистрация схем и пайплайнов", "Metadata API")
+Rel(kafka, datahub, "Событийный lineage", "Kafka Connect")
+
+Rel(trino, iceberg, "SQL-запросы", "Iceberg catalog")
+Rel(trino, kafka, "Запросы к стримам", "Kafka topics")
+Rel(dremio, iceberg, "Self-service SQL", "Iceberg connector")
+Rel(dremio, kafka, "Read from streams", "Kafka connector")
+Rel(superset, trino, "BI-запросы", "JDBC/ODBC")
+Rel(superset, dremio, "BI-запросы (опц.)", "JDBC")
+
+Rel(apiGw, core_app, "API вызовы", "REST/gRPC")
+Rel(apiGw, auth, "Аутентификация и авторизация", "OAuth2 / JWT")
+
+@enduml
