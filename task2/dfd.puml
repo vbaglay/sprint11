@@ -1,54 +1,53 @@
 @startuml
-!includeurl https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Deployment.puml
-
+!define C4P https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master
+!include C4P/C4_Container.puml
 LAYOUT_WITH_LEGEND()
 
-Person(biUser, "Бизнес-пользователь", "Запрашивает данные для анализа")
+title Data Mesh DFD — Будущее 2.0, домены и платформа
 
-System_Ext(dwh, "Централизованный DWH", "Историческое хранилище (устаревающее)")
-System_Ext(dataHub, "DataHub", "Каталог данных и метаданных")
-System_Ext(kafka, "Kafka", "Event Streaming Platform")
-System_Ext(rbac, "RBAC / IAM", "Сервис управления доступом")
-
-System_Boundary(fintech, "Домен: Финтех") {
-  Container(finStorage, "Финансовое хранилище", "Iceberg/S3", "Витрина данных (Data Product)")
-  Container(finProducer, "Производитель данных", "ETL / CDC", "Формирует события и витрины")
+System_Boundary(domains, "Бизнес-домены (DDD)") {
+  Container(patients, "Patients", "DDD Core", "Персональные данные, контакты (PII)")
+  Container(medical, "Medical", "DDD Core", "Медкарты, врачи, назначения")
+  Container(fintech, "Fintech", "DDD Core", "Счета, кредиты, платежи")
+  Container(logistics, "Logistics", "DDD Core", "Поставки, инвентарь, фарма")
 }
 
-System_Boundary(clinic, "Домен: Клиники") {
-  Container(clinicStorage, "Хранилище клиник", "Iceberg/S3", "Витрина данных (без PII)")
-  Container(clinicProducer, "Производитель данных", "ETL / CDC", "Обрабатывает TMS и мед.системы")
+System_Boundary(platform, "Data Mesh Platform") {
+  Container(kafka, "Kafka\nEvent Hub", "Apache Kafka", "Event-driven")
+  Container(airflow, "Airflow\nOrchestrator", "Apache Airflow", "Оркестрация ETL/ELT пайплайнов")
+  Container(iceberg, "Iceberg\nData Lakehouse", "Apache Iceberg\n(on S3)", "ACID-таблицы аналитики")
+  Container(nessie, "Nessie\nVersion Control", "Project Nessie")
+  Container(datahub, "DataHub\nMetadata Catalog", "DataHub", "Метаданные, lineage, RBAC")
+  Container(trino, "Trino\nQuery Engine", "Trino", "SQL к Iceberg/Kafka")
+  Container(superset, "Superset\nBI Portal", "Apache Superset", "Панели и отчёты")
+  Container(apiGw, "API Gateway", "Kong + Keycloak", "API-контроль и аутентификация")
 }
 
-System_Boundary(ai, "Домен: ИИ") {
-  Container(aiStorage, "AI Dataset Store", "S3 + ML Format", "Модельные витрины")
-  Container(aiProducer, "Производитель данных", "Kafka Consumer + Enricher", "Подготовка датасетов")
-}
+' Потоки из доменов в платформу
+Rel(patients, kafka, "PatientEvents", "Avro/JSON")
+Rel(medical, kafka, "MedicalAggregates", "Avro")
+Rel(fintech, kafka, "FinanceMetrics", "Avro")
+Rel(logistics, kafka, "LogisticsEvents", "JSON")
 
-System(biPortal, "BI-портал", "Superset + Dremio", "Портал самообслуживания")
+Rel(kafka, airflow, "Trigger ETL jobs", "Consumer")
+Rel(airflow, iceberg, "Write transformed tables", "Parquet")
+Rel(iceberg, nessie, "Versioned tables", "Metadata commits")
+Rel(airflow, datahub, "Register pipelines & schemas", "Metadata API")
 
-Rel(biUser, biPortal, "Строит отчёты")
-Rel(biPortal, rbac, "Запрашивает доступ")
+' Метаданные и каталог
+Rel(datahub, trino, "Provide schemas & policies", "REST API")
 
-Rel(biPortal, finStorage, "Читает витрины")
-Rel(biPortal, clinicStorage, "Читает витрины")
-Rel(biPortal, aiStorage, "Читает витрины")
+' Запросы BI & доменов
+Rel(superset, trino, "SQL queries", "JDBC")
 
-Rel(finProducer, kafka, "Публикует события")
-Rel(clinicProducer, kafka, "Публикует события")
-Rel(aiProducer, kafka, "Потребляет события")
+' API-доступ к доменам
+Rel(apiGw, patients, "REST/gRPC calls\n(patient profile)")
+Rel(apiGw, medical, "REST/gRPC calls\n(medical records)")
+Rel(apiGw, fintech, "REST/gRPC calls\n(financial services)")
+Rel(apiGw, logistics, "REST/gRPC calls\n(logistics services)")
 
-Rel(finProducer, finStorage, "Пишет витрины")
-Rel(clinicProducer, clinicStorage, "Пишет витрины")
-Rel(aiProducer, aiStorage, "Формирует датасеты")
-
-Rel(finProducer, dataHub, "Регистрирует схемы и описания")
-Rel(clinicProducer, dataHub, "Регистрирует схемы и описания")
-Rel(aiProducer, dataHub, "Регистрирует схемы и описания")
-
-Rel(biPortal, dataHub, "Читает метаданные")
-
-Rel(finProducer, dwh, "Параллельно выгружает в DWH (временно)", "ETL")
-Rel(clinicProducer, dwh, "Параллельно выгружает в DWH (временно)", "ETL")
+' Аналитический SQL-слой
+Rel(trino, iceberg, "Read analytical tables", "Iceberg tables")
+Rel(trino, kafka, "Read real-time streams", "Kafka topics")
 
 @enduml
