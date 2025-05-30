@@ -9,4 +9,4 @@
 | 5  | Нет версионирования данных        | Rollback, time-travel, dev/prod среда          | Iceberg + Nessie (Git-like версионирование)                                               | **MUST**   |  
 | 6  | Ограниченные возможности отчётов  | Self-service BI для аналитиков                 | Superset поверх Trino                                                                     | **SHOULD** |  
 | 7  | Зависимость от Legacy DWH (MSSQL) | Миграция на современную платформу              | Поэтапный перенос в Iceberg через Airflow CDC                                             | **SHOULD** |  
-| 8  | Разрозненный доступ к API         | Единая точка входа и аутентификация            | API Gateway (Kong) + Keycloak (OIDC/JWT)                                                  | **SHOULD** |  
+| 8  | Отсутствие API         | Единая точка входа и аутентификация            | API Gateway (Kong) + Keycloak (OIDC/JWT)                                                  | **SHOULD** |  
